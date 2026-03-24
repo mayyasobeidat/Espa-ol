@@ -56,7 +56,7 @@ async function searchWord() {
 // ==================
 async function saveWordOnline() {
   if (!currentWordData) return;
-  const url = "https://script.google.com/macros/s/AKfycbw2ctldqmnXny8tG-AIcKj1I9yp4RjlQm_sNbITemsNNY6DBbGwmghSFdsIu0VwP-3wjA/exec";
+  const url = "https://script.google.com/macros/s/AKfycbzbqVEZzR6FqbU2rDN8M5ZVTvJrvT7P_1lMZh7dWhzn4Q-SpjhZ9tn5mHr2zlSNhFi97A/exec";
 
   try {
     const res = await fetch(url, {
@@ -81,7 +81,7 @@ async function saveWordOnline() {
 // 4️⃣ جلب الكلمات من Google Sheets
 // ==================
 async function fetchSavedWords() {
-  const url = "https://script.google.com/macros/s/AKfycbw2ctldqmnXny8tG-AIcKj1I9yp4RjlQm_sNbITemsNNY6DBbGwmghSFdsIu0VwP-3wjA/exec";
+  const url = "https://script.google.com/macros/s/AKfycbzbqVEZzR6FqbU2rDN8M5ZVTvJrvT7P_1lMZh7dWhzn4Q-SpjhZ9tn5mHr2zlSNhFi97A/exec";
   try {
     const res = await fetch(url);
     const data = await res.json();
