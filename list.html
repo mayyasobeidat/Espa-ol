@@ -214,11 +214,15 @@ body.dark #toast {
 /* تعديلات الموبايل (للشاشات الأصغر من 600 بكسل) */
 @media (max-width: 600px) {
     body {
-        padding-top: 70px;
-        /* التأكد من أن الخلفية ثابتة وتغطي كامل المساحة */
+      
         background-attachment: fixed; 
     }
-    
+    .login-card, .quiz-card { 
+      width: 75%;
+    }
+  .quiz-card {
+     width: 75%;
+  }
     .container {
         width: 92%; /* ترك هامش بسيط جداً يميناً ويساراً */
         margin-top: 10px;
