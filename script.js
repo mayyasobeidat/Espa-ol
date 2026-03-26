@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbwEQlq4PQTlhPTJGfbl_l83dhDMPQLnqNF1zuVvFu4ourXe5T3kaw1iKHggkTri_Lta/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbz71BmhXe21Ny1ZOMoZK-aiWHkZ2IMLIckXhDK0vFlRsMkJqPdeTU5HKGsTDsg1GDvO/exec";
 
 async function saveNewWord(spanish, arabic, user) {
     // تشفير الكلمات عشان الروابط ما تخرب بسبب المسافات أو الحروف الخاصة
