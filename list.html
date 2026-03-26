@@ -642,23 +642,24 @@ function deleteWordConfirm(word) {
   async function executeDelete() {
     if (!wordToDel) return;
     const word = wordToDel;
+    
+    // التحديث المتفائل: احذف من الشاشة فوراً
+    allWords = allWords.filter(w => w.sp !== word);
+    filteredWords = filteredWords.filter(w => w.sp !== word);
+    renderTable(filteredWords); 
+    calculateStats();
+
     document.getElementById('deleteModal').style.display = 'none';
-    showToast("جاري الحذف... ⏳");
+    showToast("جاري التحديث في السيرفر... ☁️");
 
     try {
-      const response = await fetch(`${API_URL}?action=delete&user=${currentUser}&sp=${encodeURIComponent(word)}`);
-      const result = await response.json();
-      
-      showToast("تم الحذف ✅");
-      allWords = allWords.filter(w => w.sp !== word);
-      filteredWords = filteredWords.filter(w => w.sp !== word);
-      calculateStats();
-      renderTable(filteredWords);
-    } catch (error) {
-      showToast("فشل الحذف ⚠️");
+        // نرسل الطلب وننساه (Background)
+        fetch(`${API_URL}?action=delete&user=${currentUser}&sp=${encodeURIComponent(word)}`);
+    } catch (e) {
+        showToast("⚠️ حدث خطأ في المزامنة");
+        loadData(); // إعادة جلب البيانات للتأكد
     }
-  }
-
+}
 function closeDeleteModal() {
     document.getElementById('deleteModal').style.display = 'none';
 }
@@ -681,7 +682,7 @@ function startQuiz() {
 }
 
  // تعديل بسيط في checkAnswer لاستدعاء الدالة الجديدة
-  async function checkAnswer() {
+ async function checkAnswer() {
     if (isProcessing) return;
     const inputField = document.getElementById('quizInput');
     const userAns = inputField.value.trim().toLowerCase();
@@ -693,32 +694,43 @@ function startQuiz() {
 
     if (userAns === correctAns) {
       fb.innerHTML = "<span style='color:#2ecc71'>ممتاز! إجابة صحيحة 🌟</span>";
-      await updateServerLevel(currentWord.sp, true);
+      
+      // --- التعديل الجوهري هنا ---
+      // حذفنا الـ await: نرسل الطلب ونكمل الكود فوراً
+      updateServerLevel(currentWord.sp, true); 
+      
       setTimeout(() => {
         isProcessing = false;
+        // قللنا الوقت لـ 600ms ليكون الانتقال أسرع وأسلس
         if (dueWords.length > 1) startQuiz(); else closeQuiz();
-      }, 1000);
+      }, 600); 
+
     } else {
       fb.innerHTML = `<span style='color:#e74c3c'>خطأ، الصحيح: ${currentWord.sp}</span>`;
-      await updateServerLevel(currentWord.sp, false);
+      
+      // نرسل الخطأ للسيرفر في الخلفية أيضاً
+      updateServerLevel(currentWord.sp, false); 
+      
       setTimeout(() => {
         isProcessing = false;
         startQuiz();
-      }, 2500);
+      }, 2000); // تركنا وقت أطول قليلاً هنا ليقرأ المستخدم التصحيح
     }
   }
 
 function closeQuiz() { document.getElementById('quizOverlay').style.display = 'none'; }
 
     // --- دالة تحديث المستوى (للكويز) ---
-  async function updateServerLevel(spanishWord, isCorrect) {
+ async function updateServerLevel(spanishWord, isCorrect) {
     try {
       const url = `${API_URL}?action=updateLevel&user=${currentUser}&sp=${encodeURIComponent(spanishWord)}&isCorrect=${isCorrect}`;
-      await fetch(url);
-      loadData(); // إعادة تحديث البيانات بعد الإجابة
-    } catch (error) {
-      console.error("Update Error:", error);
-    }
+      // نكتفي بالإرسال فقط
+      fetch(url); 
+      
+      // تحديث مصفوفة dueWords محلياً فقط لكي لا تظهر الكلمة مرة أخرى في نفس الجلسة
+      dueWords = dueWords.filter(w => w.sp !== spanishWord);
+      
+    } catch (e) { console.error("Update error ignored in BG"); }
   }
 </script>
 </body>
