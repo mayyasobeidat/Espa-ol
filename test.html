@@ -164,9 +164,9 @@
     let correctFirstTry = 0;
     let totalTested = 0;
 
-    window.onload = function () {
-        const savedTheme = localStorage.getItem('theme_list');
-        if (savedTheme === 'dark') {
+     window.onload = function () {
+        // 1. تطبيق الثيم فوراً
+        if (localStorage.getItem('theme_list') === 'dark') {
             document.body.classList.add('dark');
             document.getElementById('themeBtn').innerText = "☀️";
         }
@@ -185,26 +185,39 @@
         currentUser = name;
         location.reload();
     }
-
-       // --- دالة جلب الكلمات المعدلة بـ Fetch ---
+// --- نظام التحميل الذكي (السر في السرعة) ---
     async function startLoading() {
-        document.getElementById('questionWord').innerText = "⏳";
+        const questionEl = document.getElementById('questionWord');
+        
+        // أ. حاول التحميل من الذاكرة المحلية (Cache) أولاً
+        const localCache = localStorage.getItem(`cache_${currentUser}`);
+        if (localCache) {
+            myWords = JSON.parse(localCache);
+            myWords.sort(() => Math.random() - 0.5); // خلط عشوائي
+            loadQuestion(); 
+            console.log("تم التحميل من الذاكرة المحلية 🚀");
+        } else {
+            questionEl.innerText = "جاري تحضير الاختبار لأول مرة... ⏳";
+        }
+
+        // ب. في الخلفية، اطلب البيانات الأحدث من جوجل لتحديث الذاكرة للمرة القادمة
         try {
-            // نستخدم نفس الأكشن getWords لأنها تجلب كلمات المستخدم
             const response = await fetch(`${API_URL}?action=getWords&user=${currentUser}`);
-            const words = await response.json();
+            const freshWords = await response.json();
             
-            myWords = words || [];
-            if (myWords.length > 0) {
-                // خلط الكلمات عشوائياً للاختبار
-                myWords.sort(() => Math.random() - 0.5);
-                loadQuestion();
-            } else {
-                document.getElementById('questionWord').innerText = "الدفتر فارغ! أضف كلمات أولاً.";
+            if (freshWords && freshWords.length > 0) {
+                localStorage.setItem(`cache_${currentUser}`, JSON.stringify(freshWords));
+                
+                // إذا كانت هذه أول مرة (لا يوجد كاش)، ابدأ الاختبار الآن
+                if (!localCache) {
+                    myWords = freshWords;
+                    myWords.sort(() => Math.random() - 0.5);
+                    loadQuestion();
+                }
             }
         } catch (error) {
-            console.error("Test Loading Error:", error);
-            document.getElementById('questionWord').innerText = "❌ فشل تحميل الكلمات";
+            console.error("فشل تحديث الكاش في الخلفية:", error);
+            if (!localCache) questionEl.innerText = "❌ فشل الاتصال. تأكد من الإنترنت.";
         }
     }
 
@@ -216,17 +229,10 @@
             if (skippedWords.length > 0) {
                 resultDiv.innerHTML = `<div style="color:#f39c12">انتهت الجولة!<br>جاري تحضير الكلمات المتخطاة...</div>`;
                 setTimeout(() => {
-                    myWords = skippedWords; 
-                    skippedWords = []; 
-                    currentIndex = 0; 
-                    isReviewingSkipped = true; 
-                    loadQuestion();
-                }, 1500);
+                    myWords = skippedWords; skippedWords = []; currentIndex = 0; isReviewingSkipped = true; loadQuestion();
+                }, 1200);
                 return;
-            } else { 
-                showFinalResult(); 
-                return; 
-            }
+            } else { showFinalResult(); return; }
         }
         
         document.getElementById('progressInfo').innerText = `كلمة ${currentIndex + 1} من ${myWords.length} ${isReviewingSkipped ? '(مراجعة)' : ''}`;
@@ -236,50 +242,37 @@
         resultDiv.innerText = ""; 
         inputField.focus();
     }
-       // --- دالة التحقق وتحديث السيرفر (Fetch) ---
-    async function checkAnswer() {
-    const inputField = document.getElementById('userAnswer');
-    if (inputField.disabled || !inputField.value.trim()) return;
+       
+    // دالة التحقق (سريعة جداً بدون انتظار)
+    function checkAnswer() {
+        const inputField = document.getElementById('userAnswer');
+        if (inputField.disabled || !inputField.value.trim()) return;
 
-    const userAnswer = normalize(inputField.value);
-    const wordObj = myWords[currentIndex]; 
-    const storedMeaning = wordObj.ar;
-    const possibleMeanings = storedMeaning.split(/[/،,-]/).map(m => normalize(m.trim()));
-    
-    let isCorrect = possibleMeanings.some(m => m === userAnswer);
-    let isClose = !isCorrect && possibleMeanings.some(m => m.length > 3 && getLevenshteinDistance(m, userAnswer) === 1);
-    
-    const resultDiv = document.getElementById('resultMsg');
-    inputField.disabled = true;
-    
-    const finalCheck = (isCorrect || isClose);
+        const userAnswer = normalize(inputField.value);
+        const wordObj = myWords[currentIndex];
+        const possibleMeanings = wordObj.ar.split(/[/،,-]/).map(m => normalize(m.trim()));
+        
+        let isCorrect = possibleMeanings.some(m => m === userAnswer);
+        let isClose = !isCorrect && possibleMeanings.some(m => m.length > 3 && getLevenshteinDistance(m, userAnswer) === 1);
+        
+        const resultDiv = document.getElementById('resultMsg');
+        inputField.disabled = true;
+        const finalCheck = (isCorrect || isClose);
 
-    // 1. إظهار النتيجة للمستخدم فوراً
-    if (isCorrect) {
-        resultDiv.innerHTML = "<span style='color:green'>✅ صح! ممتاز.</span>";
-        if (!isReviewingSkipped) correctFirstTry++;
-    } else if (isClose) {
-        resultDiv.innerHTML = `<span style='color:#f39c12'>⚠️ قريبة! الإجابة: ${storedMeaning}</span>`;
-        if (!isReviewingSkipped) correctFirstTry++;
-    } else {
-        resultDiv.innerHTML = `<span style='color:red'>❌ خطأ. الإجابة: ${storedMeaning}</span>`;
+        if (isCorrect) resultDiv.innerHTML = "<span style='color:green'>✅ صح!</span>";
+        else if (isClose) resultDiv.innerHTML = `<span style='color:#f39c12'>⚠️ قريبة! (${wordObj.ar})</span>`;
+        else resultDiv.innerHTML = `<span style='color:red'>❌ خطأ: ${wordObj.ar}</span>`;
+
+        // إرسال التحديث في الخلفية (بدون انتظار)
+        if (!isReviewingSkipped) {
+            totalTested++;
+            if (finalCheck) correctFirstTry++;
+            fetch(`${API_URL}?action=updateLevel&user=${currentUser}&sp=${encodeURIComponent(wordObj.sp)}&isCorrect=${finalCheck}`);
+        }
+
+        currentIndex++;
+        setTimeout(loadQuestion, 800);
     }
-
-    // 2. التعديل الجوهري: إرسال التحديث للسيرفر "في الخلفية"
-    if (!isReviewingSkipped) {
-        totalTested++;
-        // نرسل الطلب بدون await وبدون توقع رد (Fire and Forget)
-        const updateUrl = `${API_URL}?action=updateLevel&user=${currentUser}&sp=${encodeURIComponent(wordObj.sp)}&isCorrect=${finalCheck}`;
-        fetch(updateUrl).catch(e => console.log("Background update failed, but it's okay."));
-    }
-
-    // 3. الانتقال السريع للكلمة التالية
-    currentIndex++;
-    // قللنا الوقت من 1200ms إلى 800ms ليكون الاختبار أسرع
-    setTimeout(loadQuestion, 800);
-}
-
-    // (باقي الدوال: skipWord, showFinalResult, normalize, getLevenshteinDistance, toggleTheme تبقى كما هي)
     function skipWord() {
         const inputField = document.getElementById('userAnswer');
         if (inputField.disabled) return;
