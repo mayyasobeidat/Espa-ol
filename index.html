@@ -302,35 +302,18 @@
   async function saveToMySheet() {
     const sp = document.getElementById('spWord').value.trim();
     const ar = document.getElementById('arMeaning').value.trim();
+    if(!sp || !ar) { showToast("⚠️ املأ الحقول"); return; }
     
-    if(!sp || !ar) { showToast("⚠️ املأ الحقول أولاً"); return; }
-    
-    const btn = document.getElementById('saveBtn');
-    btn.disabled = true; 
-    btn.innerText = "جاري الحفظ... ⏳";
+    // --- السرعة هنا ---
+    // 1. نظف الحقول فوراً وكأن العملية تمت
+    document.getElementById('spWord').value = "";
+    document.getElementById('arMeaning').value = "";
+    showToast("جاري الحفظ في الخلفية... ✅");
 
-    try {
-      // بناء الرابط مع تشفير الكلمات للحفاظ على الحروف الخاصة مثل (ñ, á)
-      const url = `${API_URL}?action=save&user=${currentUser}&sp=${encodeURIComponent(sp)}&ar=${encodeURIComponent(ar)}`;
-      
-      const response = await fetch(url);
-      const msg = await response.json(); // جوجل سكريبت بيرجع نص الرسالة
-
-      showToast(msg);
-      
-      if(msg.includes("✅")) {
-        document.getElementById('spWord').value = "";
-        document.getElementById('arMeaning').value = "";
-        if(document.getElementById('hintBox')) document.getElementById('hintBox').style.display = "none";
-      }
-    } catch (error) {
-      console.error("Save Error:", error);
-      showToast("⚠️ فشل الاتصال بالسيرفر");
-    } finally {
-      btn.disabled = false; 
-      btn.innerText = "حفظ الكلمة ✨";
-    }
-  }
+    // 2. أرسل الطلب لجوجل "وانساه"
+    const url = `${API_URL}?action=save&user=${currentUser}&sp=${encodeURIComponent(sp)}&ar=${encodeURIComponent(ar)}`;
+    fetch(url).catch(e => console.error("Save failed in background"));
+}
 
 
    // --- دالة الاقتراحات المعدلة بـ Fetch ---
