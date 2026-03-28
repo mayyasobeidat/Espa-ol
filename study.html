@@ -79,7 +79,6 @@
 
     // 2. الدالة الأساسية لجلب الكلمات (تم تصحيح async)
   
-
 async function loadStudyWords() {
     const grid = document.getElementById('wordsGrid');
     const currentUser = localStorage.getItem('app_user_id');
@@ -90,7 +89,7 @@ async function loadStudyWords() {
         return;
     }
 
-    // 1. اعرض الكلمات المخزنة في الجهاز فوراً (بدون انتظار)
+    // 1. اعرض الموجود "حالياً" في اللابتوب عشان السرعة
     let localWords = JSON.parse(localStorage.getItem('needs_study')) || [];
     if (localWords.length > 0) {
         displayWords(localWords);
@@ -98,35 +97,31 @@ async function loadStudyWords() {
         grid.innerHTML = "<p id='syncStatus' style='text-align:center;'>جاري المزامنة من جوجل شيت... ⏳</p>";
     }
 
-    // 2. ابدأ المزامنة من السحاب في الخلفية
+    // 2. المزامنة الحقيقية (التصحيح)
     try {
         const finalUrl = `${API_URL}?action=getStudyWords&user=${currentUser}`;
         const response = await fetch(finalUrl);
         const cloudWords = await response.json();
         
         if (Array.isArray(cloudWords)) {
-            // دمج البيانات ومنع التكرار
-            const combinedMap = new Map();
-            cloudWords.forEach(w => combinedMap.set(w.sp.toLowerCase(), w));
-            localWords.forEach(w => combinedMap.set(w.sp.toLowerCase(), w));
-            
-            const finalList = Array.from(combinedMap.values());
-            
-            // تحديث الذاكرة المحلية
-            localStorage.setItem('needs_study', JSON.stringify(finalList));
+            // --- التعديل الجوهري هنا ---
+            // بدل ما ندمج (CombinedMap)، بنخلي اللوكل "نسخة طبق الأصل" من الشيت
+            localStorage.setItem('needs_study', JSON.stringify(cloudWords));
 
-            // 3. حدّث الواجهة بالكلمات الجديدة (سواء كانت من الشيت أو الموبايل)
-            displayWords(finalList);
+            // تحديث الشاشة فوراً بالبيانات الحقيقية القادمة من السحاب
+            displayWords(cloudWords);
             
-            // إخفاء رسالة التحميل لو كانت ظاهرة
             const status = document.getElementById('syncStatus');
             if(status) status.style.display = 'none';
+            console.log("Sync Complete: Local memory updated to match Cloud ✅");
         }
     } catch (e) {
         console.error("Sync Error:", e);
-        // في حال الفشل، المستخدم أصلاً شايف الكلمات المحلية فما بنزعجه برسائل خطأ كبيرة
+        // في حال انقطع النت، منخلي الموجود محلياً بس بننبه المستخدم
+        console.log("Showing local backup due to connection error.");
     }
 }
+
 
     // 3. دالة عرض الكلمات في الشبكة
     function displayWords(list) {
