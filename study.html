@@ -78,54 +78,61 @@
     }
 
     // 2. الدالة الأساسية لجلب الكلمات (تم تصحيح async)
-    async function loadStudyWords() {
-        const grid = document.getElementById('wordsGrid');
-        const currentUser = localStorage.getItem('app_user_id');
+    نعم بالضبط، هذا التعديل بيخلي التطبيق أسرع بكتير من ناحية تجربة المستخدم (UX).
+
+في الكود القديم، كنت بتجبر المستخدم يستنى الرد من جوجل عشان يشوف أي كلمة. في الكود الجديد، بنعرض الموجود في الموبايل فوراً، وبنحدّث البيانات "بهدوء" من الشيت.
+
+إليك النسخة النهائية والمحسنة من الدالة (جاهزة للنسخ):
+
+JavaScript
+
+async function loadStudyWords() {
+    const grid = document.getElementById('wordsGrid');
+    const currentUser = localStorage.getItem('app_user_id');
+    const API_URL = "https://script.google.com/macros/s/AKfycbzJlL2gsxbBzqElRBBbS-mS3jLcY78gJmR-fLO8pWsBJ9Ef68S3HwlBmLeIHSxG-Q/exec";
+    
+    if (!currentUser) {
+        grid.innerHTML = "<p style='text-align:center;'>⚠️ يرجى تسجيل الدخول أولاً.</p>";
+        return;
+    }
+
+    // 1. اعرض الكلمات المخزنة في الجهاز فوراً (بدون انتظار)
+    let localWords = JSON.parse(localStorage.getItem('needs_study')) || [];
+    if (localWords.length > 0) {
+        displayWords(localWords);
+    } else {
+        grid.innerHTML = "<p id='syncStatus' style='text-align:center;'>جاري المزامنة من جوجل شيت... ⏳</p>";
+    }
+
+    // 2. ابدأ المزامنة من السحاب في الخلفية
+    try {
+        const finalUrl = `${API_URL}?action=getStudyWords&user=${currentUser}`;
+        const response = await fetch(finalUrl);
+        const cloudWords = await response.json();
         
-        // تأكد أن هذا الرابط هو رابط الـ Web App المحدث لديك
-        const API_URL = "https://script.google.com/macros/s/AKfycbzJlL2gsxbBzqElRBBbS-mS3jLcY78gJmR-fLO8pWsBJ9Ef68S3HwlBmLeIHSxG-Q/exec";
-        
-        if (!currentUser) {
-            grid.innerHTML = "<p style='text-align:center;'>⚠️ يرجى تسجيل الدخول أولاً.</p>";
-            return;
-        }
-
-        grid.innerHTML = "<p style='text-align:center;'>جاري المزامنة من جوجل شيت... ⏳</p>";
-
-        try {
-            console.log("Fetching for user:", currentUser);
-            const finalUrl = `${API_URL}?action=getStudyWords&user=${currentUser}`;
-            
-            const response = await fetch(finalUrl);
-            const cloudWords = await response.json();
-            
-            console.log("Cloud words received:", cloudWords);
-
-            if (!Array.isArray(cloudWords)) {
-                throw new Error("Data is not an array");
-            }
-
-            // دمج البيانات المحلية مع بيانات السحابة ومنع التكرار
-            let localWords = JSON.parse(localStorage.getItem('needs_study')) || [];
+        if (Array.isArray(cloudWords)) {
+            // دمج البيانات ومنع التكرار
             const combinedMap = new Map();
-            
             cloudWords.forEach(w => combinedMap.set(w.sp.toLowerCase(), w));
             localWords.forEach(w => combinedMap.set(w.sp.toLowerCase(), w));
             
-            const finalMainList = Array.from(combinedMap.values());
+            const finalList = Array.from(combinedMap.values());
             
-            // تحديث الذاكرة المحلية لتكون مطابقة للسحابة
-            localStorage.setItem('needs_study', JSON.stringify(finalMainList));
+            // تحديث الذاكرة المحلية
+            localStorage.setItem('needs_study', JSON.stringify(finalList));
 
-            displayWords(finalMainList);
-
-        } catch (e) {
-            console.error("Sync Error:", e);
-            grid.innerHTML = "<p style='color:red; text-align:center;'>⚠️ فشل الاتصال بالسحابة. يتم عرض البيانات المحلية فقط.</p>";
-            let localWords = JSON.parse(localStorage.getItem('needs_study')) || [];
-            displayWords(localWords);
+            // 3. حدّث الواجهة بالكلمات الجديدة (سواء كانت من الشيت أو الموبايل)
+            displayWords(finalList);
+            
+            // إخفاء رسالة التحميل لو كانت ظاهرة
+            const status = document.getElementById('syncStatus');
+            if(status) status.style.display = 'none';
         }
+    } catch (e) {
+        console.error("Sync Error:", e);
+        // في حال الفشل، المستخدم أصلاً شايف الكلمات المحلية فما بنزعجه برسائل خطأ كبيرة
     }
+}
 
     // 3. دالة عرض الكلمات في الشبكة
     function displayWords(list) {
