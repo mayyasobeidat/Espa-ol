@@ -72,70 +72,95 @@
     <a href="index.html" class="back-btn">⬅️ العودة للرئيسية</a>
 
     <script>
-        // تحميل الثيم
-        if (localStorage.getItem('theme_list') === 'dark') {
-            document.body.classList.add('dark');
+    // 1. تحميل الثيم
+    if (localStorage.getItem('theme_list') === 'dark') {
+        document.body.classList.add('dark');
+    }
+
+    // 2. الدالة الأساسية لجلب الكلمات (تم تصحيح async)
+    async function loadStudyWords() {
+        const grid = document.getElementById('wordsGrid');
+        const currentUser = localStorage.getItem('app_user_id');
+        
+        // تأكد أن هذا الرابط هو رابط الـ Web App المحدث لديك
+        const API_URL = "https://script.google.com/macros/s/AKfycbzJlL2gsxbBzqElRBBbS-mS3jLcY78gJmR-fLO8pWsBJ9Ef68S3HwlBmLeIHSxG-Q/exec";
+        
+        if (!currentUser) {
+            grid.innerHTML = "<p style='text-align:center;'>⚠️ يرجى تسجيل الدخول أولاً.</p>";
+            return;
         }
 
-       async function loadStudyWords() {
-    const grid = document.getElementById('wordsGrid');
-    const badge = document.getElementById('countBadge');
-    
-    // 1. جلب الكلمات من الذاكرة المحلية (الموبايل)
-    let localStudyList = JSON.parse(localStorage.getItem('needs_study')) || [];
-    
-    grid.innerHTML = "<p style='text-align:center;'>جاري مزامنة الكلمات من السحابة... ☁️</p>";
+        grid.innerHTML = "<p style='text-align:center;'>جاري المزامنة من جوجل شيت... ⏳</p>";
 
-    try {
-        // 2. جلب الكلمات من جوجل شيت (السحابة)
-        const response = await fetch(`${API_URL}?action=getStudyWords&user=${currentUser}`);
-        const cloudWords = await response.json();
-        
-        // 3. دمج القائمتين ومنع التكرار
-        // نستخدم Map عشان نتأكد إن الكلمة ما تتكرر لو كانت موجودة هون وهون
-        const combinedMap = new Map();
-        [...cloudWords, ...localStudyList].forEach(word => {
-            combinedMap.set(word.sp.toLowerCase(), word);
-        });
-        
-        const finalMainList = Array.from(combinedMap.values());
-        
-        // تحديث الذاكرة المحلية عشان المرة الجاية تفتح أسرع
-        localStorage.setItem('needs_study', JSON.stringify(finalMainList));
+        try {
+            console.log("Fetching for user:", currentUser);
+            const finalUrl = `${API_URL}?action=getStudyWords&user=${currentUser}`;
+            
+            const response = await fetch(finalUrl);
+            const cloudWords = await response.json();
+            
+            console.log("Cloud words received:", cloudWords);
 
-        // 4. العرض في الصفحة
-        displayWords(finalMainList);
+            if (!Array.isArray(cloudWords)) {
+                throw new Error("Data is not an array");
+            }
 
-    } catch (e) {
-        console.error("Sync failed, showing local only");
-        displayWords(localStudyList);
-    }
-}
+            // دمج البيانات المحلية مع بيانات السحابة ومنع التكرار
+            let localWords = JSON.parse(localStorage.getItem('needs_study')) || [];
+            const combinedMap = new Map();
+            
+            cloudWords.forEach(w => combinedMap.set(w.sp.toLowerCase(), w));
+            localWords.forEach(w => combinedMap.set(w.sp.toLowerCase(), w));
+            
+            const finalMainList = Array.from(combinedMap.values());
+            
+            // تحديث الذاكرة المحلية لتكون مطابقة للسحابة
+            localStorage.setItem('needs_study', JSON.stringify(finalMainList));
 
-function displayWords(list) {
-    const grid = document.getElementById('wordsGrid');
-    const badge = document.getElementById('countBadge');
-    const emptyMsg = document.getElementById('emptyMsg');
+            displayWords(finalMainList);
 
-    badge.innerText = `${list.length} كلمة`;
-
-    if (list.length === 0) {
-        grid.innerHTML = "";
-        emptyMsg.style.display = "block";
-        return;
+        } catch (e) {
+            console.error("Sync Error:", e);
+            grid.innerHTML = "<p style='color:red; text-align:center;'>⚠️ فشل الاتصال بالسحابة. يتم عرض البيانات المحلية فقط.</p>";
+            let localWords = JSON.parse(localStorage.getItem('needs_study')) || [];
+            displayWords(localWords);
+        }
     }
 
-    emptyMsg.style.display = "none";
-    grid.innerHTML = list.map(word => `
-        <div class="word-card" onclick="this.classList.toggle('show')">
-            <button class="delete-btn" onclick="event.stopPropagation(); removeItem('${word.sp}')">×</button>
-            <span class="sp-word">${word.sp}</span>
-            <span class="ar-word">${word.ar}</span>
-        </div>
-    `).join('');
-}
+    // 3. دالة عرض الكلمات في الشبكة
+    function displayWords(list) {
+        const grid = document.getElementById('wordsGrid');
+        const badge = document.getElementById('countBadge');
+        const emptyMsg = document.getElementById('emptyMsg');
 
-        window.onload = loadStudyWords;
-    </script>
+        badge.innerText = `${list.length} كلمة`;
+
+        if (list.length === 0) {
+            grid.innerHTML = "";
+            emptyMsg.style.display = "block";
+            return;
+        }
+
+        emptyMsg.style.display = "none";
+        grid.innerHTML = list.map(word => `
+            <div class="word-card" onclick="this.classList.toggle('show')">
+                <button class="delete-btn" onclick="event.stopPropagation(); removeItem('${word.sp}')">×</button>
+                <span class="sp-word">${word.sp}</span>
+                <span class="ar-word">${word.ar}</span>
+            </div>
+        `).join('');
+    }
+
+    // 4. دالة الحذف (أضفناها لضمان عمل زر X)
+    function removeItem(sp) {
+        let studyList = JSON.parse(localStorage.getItem('needs_study')) || [];
+        studyList = studyList.filter(w => w.sp.toLowerCase() !== sp.toLowerCase());
+        localStorage.setItem('needs_study', JSON.stringify(studyList));
+        displayWords(studyList);
+        // ملاحظة: الحذف هنا محلي، يمكنك إضافة fetch لحذفه من الشيت أيضاً لاحقاً
+    }
+
+    window.onload = loadStudyWords;
+</script>
 </body>
 </html>
