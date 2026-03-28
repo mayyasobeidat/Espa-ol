@@ -193,9 +193,10 @@
 <body>
 
 <div id="userStatus">
-  <div style="display: flex; align-items: center; gap: 5px;">
+  <div style="display: flex; align-items: center; gap: 8px;">
     <span>👤</span>
     <b id="currentDisplayName" style="font-size: 14px; letter-spacing: 1px;"></b>
+    <span id="dailyStreak" style="margin-right: 10px; font-size: 14px;">🔥 0</span>
   </div>
 
   <div class="header-left">
@@ -257,19 +258,48 @@
 
   let currentUser = localStorage.getItem('app_user_id');
 
-  window.onload = function() {
+ window.onload = function() {
+    // 1. معالجة الثيم (Dark/Light)
     if (localStorage.getItem('theme_list') === 'dark') {
-      document.body.classList.add('dark');
-      document.getElementById('themeBtn').innerText = "☀️";
+        document.body.classList.add('dark');
+        const themeBtn = document.getElementById('themeBtn');
+        if (themeBtn) themeBtn.innerText = "☀️";
     }
 
+    // 2. التحقق من المستخدم وتحديث الواجهة
     if (!currentUser) {
-      document.getElementById('loginOverlay').style.display = 'flex';
+        const loginOverlay = document.getElementById('loginOverlay');
+        if (loginOverlay) loginOverlay.style.display = 'flex';
     } else {
-      updateUIForUser();
+        // استدعاء دالة التحديث
+        updateUIForUser();
     }
-  };
+};
 
+// الدالة المسؤولة عن عرض بيانات المستخدم والستريك
+function updateUIForUser() {
+  if (currentUser) {
+    // 1. إظهار شريط المستخدم
+    document.getElementById('userStatus').style.display = 'flex';
+    
+    // 2. عرض الاسم الكبير
+    document.getElementById('currentDisplayName').innerText = currentUser.toUpperCase();
+    
+    // 3. عرض الستريك 🔥 (الجزء الجديد)
+    const streak = localStorage.getItem('user_streak') || 0;
+    const streakEl = document.getElementById('dailyStreak');
+    if (streakEl) {
+      streakEl.innerText = `🔥 ${streak}`;
+    }
+    
+    // 4. عرض نقاط التلميح 💡 (اختياري لو أضفتها للـ HTML)
+    const points = localStorage.getItem('hint_points') || 0;
+    const pointsEl = document.getElementById('hintPointsDisplay');
+    if (pointsEl) {
+      pointsEl.innerText = `💡 ${points}`;
+    }
+  }
+}
   function login() {
     const name = document.getElementById('userNameInput').value.trim().toLowerCase();
     if (name.length < 3) { showToast("⚠️ الاسم قصير جداً!"); return; }
@@ -280,12 +310,7 @@
     showToast(`أهلاً بك ${name.toUpperCase()} 👋`);
   }
 
- function updateUIForUser() {
-    if (currentUser) {
-      document.getElementById('userStatus').style.display = 'flex';
-      document.getElementById('currentDisplayName').innerText = currentUser.toUpperCase();
-    }
-  }
+
 
   // --- نظام الخروج المطور ---
  function logout() { document.getElementById('logoutModal').style.display = 'flex'; }
