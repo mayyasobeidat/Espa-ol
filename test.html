@@ -343,27 +343,47 @@ if (user) {
         }
     }
 
-    function loadQuestion() {
-        const resultDiv = document.getElementById('resultMsg');
-        const inputField = document.getElementById('userAnswer');
-        
-        if (currentIndex >= myWords.length) {
-            if (skippedWords.length > 0) {
-                resultDiv.innerHTML = `<div style="color:#f39c12">انتهت الجولة!<br>جاري تحضير الكلمات المتخطاة...</div>`;
-                setTimeout(() => {
-                    myWords = skippedWords; skippedWords = []; currentIndex = 0; isReviewingSkipped = true; loadQuestion();
-                }, 1200);
-                return;
-            } else { showFinalResult(); return; }
-        }
-        
-        document.getElementById('progressInfo').innerText = `كلمة ${currentIndex + 1} من ${myWords.length} ${isReviewingSkipped ? '(مراجعة)' : ''}`;
-        document.getElementById('questionWord').innerText = myWords[currentIndex].sp;
-        inputField.value = ""; 
-        inputField.disabled = false; 
-        resultDiv.innerText = ""; 
-        inputField.focus();
+function loadQuestion() {
+    const resultDiv = document.getElementById('resultMsg');
+    const inputField = document.getElementById('userAnswer');
+    
+    // إنهاء الاختبار أو مراجعة المتخطى
+    if (currentIndex >= myWords.length) {
+        if (skippedWords.length > 0) {
+            resultDiv.innerHTML = `<div style="color:#f39c12">انتهت الجولة!<br>جاري تحضير الكلمات المتخطاة...</div>`;
+            setTimeout(() => {
+                myWords = skippedWords; skippedWords = []; currentIndex = 0; isReviewingSkipped = true; loadQuestion();
+            }, 1200);
+            return;
+        } else { showFinalResult(); return; }
     }
+    
+    const currentWord = myWords[currentIndex].sp;
+
+    // تحديث الواجهة
+    document.getElementById('progressInfo').innerText = `كلمة ${currentIndex + 1} من ${myWords.length} ${isReviewingSkipped ? '(مراجعة)' : ''}`;
+    document.getElementById('questionWord').innerText = currentWord;
+    inputField.value = ""; 
+    inputField.disabled = false; 
+    resultDiv.innerText = ""; 
+    inputField.focus();
+
+    // --- إضافة ميزة النطق التلقائي ---
+    speakSpanish(currentWord);
+}
+
+// دالة النطق (ضعها خارج loadQuestion كدالة مستقلة أفضل)
+function speakSpanish(text) {
+    // إلغاء أي نطق شغال حالياً عشان ما يتداخلوا
+    window.speechSynthesis.cancel(); 
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'es-ES'; // إسبانيا
+    utterance.rate = 0.85;    // أبطأ قليلاً للوضوح
+    utterance.pitch = 1;      // نبرة طبيعية
+    
+    window.speechSynthesis.speak(utterance);
+}
        
     // دالة التحقق (سريعة جداً بدون انتظار)
     function checkAnswer() {
