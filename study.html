@@ -77,36 +77,63 @@
             document.body.classList.add('dark');
         }
 
-        function loadStudyWords() {
-            const studyList = JSON.parse(localStorage.getItem('needs_study')) || [];
-            const grid = document.getElementById('wordsGrid');
-            const badge = document.getElementById('countBadge');
-            const emptyMsg = document.getElementById('emptyMsg');
+       async function loadStudyWords() {
+    const grid = document.getElementById('wordsGrid');
+    const badge = document.getElementById('countBadge');
+    
+    // 1. جلب الكلمات من الذاكرة المحلية (الموبايل)
+    let localStudyList = JSON.parse(localStorage.getItem('needs_study')) || [];
+    
+    grid.innerHTML = "<p style='text-align:center;'>جاري مزامنة الكلمات من السحابة... ☁️</p>";
 
-            badge.innerText = `${studyList.length} كلمة`;
+    try {
+        // 2. جلب الكلمات من جوجل شيت (السحابة)
+        const response = await fetch(`${API_URL}?action=getStudyWords&user=${currentUser}`);
+        const cloudWords = await response.json();
+        
+        // 3. دمج القائمتين ومنع التكرار
+        // نستخدم Map عشان نتأكد إن الكلمة ما تتكرر لو كانت موجودة هون وهون
+        const combinedMap = new Map();
+        [...cloudWords, ...localStudyList].forEach(word => {
+            combinedMap.set(word.sp.toLowerCase(), word);
+        });
+        
+        const finalMainList = Array.from(combinedMap.values());
+        
+        // تحديث الذاكرة المحلية عشان المرة الجاية تفتح أسرع
+        localStorage.setItem('needs_study', JSON.stringify(finalMainList));
 
-            if (studyList.length === 0) {
-                grid.innerHTML = "";
-                emptyMsg.style.display = "block";
-                return;
-            }
+        // 4. العرض في الصفحة
+        displayWords(finalMainList);
 
-            emptyMsg.style.display = "none";
-            grid.innerHTML = studyList.map((word, index) => `
-                <div class="word-card" onclick="this.classList.toggle('show')">
-                    <button class="delete-btn" onclick="event.stopPropagation(); removeItem('${word.sp}')">×</button>
-                    <span class="sp-word">${word.sp}</span>
-                    <span class="ar-word">${word.ar}</span>
-                </div>
-            `).join('');
-        }
+    } catch (e) {
+        console.error("Sync failed, showing local only");
+        displayWords(localStudyList);
+    }
+}
 
-        function removeItem(sp) {
-            let studyList = JSON.parse(localStorage.getItem('needs_study')) || [];
-            studyList = studyList.filter(w => w.sp !== sp);
-            localStorage.setItem('needs_study', JSON.stringify(studyList));
-            loadStudyWords();
-        }
+function displayWords(list) {
+    const grid = document.getElementById('wordsGrid');
+    const badge = document.getElementById('countBadge');
+    const emptyMsg = document.getElementById('emptyMsg');
+
+    badge.innerText = `${list.length} كلمة`;
+
+    if (list.length === 0) {
+        grid.innerHTML = "";
+        emptyMsg.style.display = "block";
+        return;
+    }
+
+    emptyMsg.style.display = "none";
+    grid.innerHTML = list.map(word => `
+        <div class="word-card" onclick="this.classList.toggle('show')">
+            <button class="delete-btn" onclick="event.stopPropagation(); removeItem('${word.sp}')">×</button>
+            <span class="sp-word">${word.sp}</span>
+            <span class="ar-word">${word.ar}</span>
+        </div>
+    `).join('');
+}
 
         window.onload = loadStudyWords;
     </script>
