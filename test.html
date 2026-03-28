@@ -118,7 +118,7 @@
     </div>
 
     <script>
-        const API_URL = "https://script.google.com/macros/s/AKfycbz71BmhXe21Ny1ZOMoZK-aiWHkZ2IMLIckXhDK0vFlRsMkJqPdeTU5HKGsTDsg1GDvO/exec";
+        const API_URL = "https://script.google.com/macros/s/AKfycbxxOj7uijki42d5oKDNpVcxd35d9AFg5JKL7wUKhyiiXHjCxO9Xs_E7ZsrVbxtOGmQC/exec";
         let currentUser = localStorage.getItem('app_user_id');
         let myWords = [], skippedWords = [], currentIndex = 0;
         let isReviewingSkipped = false, correctFirstTry = 0, totalTested = 0;
@@ -318,21 +318,29 @@ function updateStudyList(wordObj, isCorrect) {
             localStorage.setItem('theme_list', d ? 'dark' : 'light');
         }
 
-        function updateStudyList(wordObj, isCorrect) {
+       async function updateStudyList(wordObj, isCorrect) {
     let studyList = JSON.parse(localStorage.getItem('needs_study')) || [];
 
     if (!isCorrect) {
-        // إذا جاوب غلط وما كانت موجودة بالقائمة.. ضيفها
         const exists = studyList.some(w => w.sp === wordObj.sp);
         if (!exists) {
             studyList.push(wordObj);
+            localStorage.setItem('needs_study', JSON.stringify(studyList));
+
+            // --- المزامنة مع الشيت في الخلفية ---
+            const syncUrl = `${API_URL}?action=saveStudy&user=${currentUser}&sp=${encodeURIComponent(wordObj.sp)}&ar=${encodeURIComponent(wordObj.ar)}`;
+            
+            fetch(syncUrl)
+                .then(() => console.log("Synced with Cloud ✅"))
+                .catch(e => console.log("Cloud sync failed, kept locally 💾"));
         }
     } else {
-        // إذا جاوب صح.. احذفها من قائمة الدراسة
+        // إذا جاوب صح بنشيلها من المحلي
         studyList = studyList.filter(w => w.sp !== wordObj.sp);
+        localStorage.setItem('needs_study', JSON.stringify(studyList));
+        
+        // ملاحظة: ممكن مستقبلاً نضيف action لحذفها من الشيت أيضاً لو حبيت
     }
-
-    localStorage.setItem('needs_study', JSON.stringify(studyList));
 }
     </script>
 </body>
