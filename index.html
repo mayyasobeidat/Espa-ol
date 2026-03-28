@@ -188,6 +188,30 @@
     /* منع تكبير الشاشة التلقائي عند الكتابة في الآيفون */
     input[type="text"] { font-size: 16px !important; }
 }
+
+    .btn-study {
+    width: 100%;
+    background: linear-gradient(135deg, #f39c12, #d35400); /* لون برتقالي دراسي */
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+    margin-top: 10px;
+    box-shadow: 0 4px 10px rgba(243, 156, 18, 0.3);
+}
+
+.btn-study:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(243, 156, 18, 0.4);
+}
+
+body.dark .btn-study {
+    background: linear-gradient(135deg, #e67e22, #a04000);
+}
   </style>
 </head>
 <body>
@@ -230,12 +254,17 @@
 
   <button onclick="saveToMySheet()" id="saveBtn" class="btn-save">حفظ الكلمة ✨</button>
 
-  <div class="nav-links" id="navLinks">
+ <div class="nav-links" id="navLinks">
     <a href="test.html">📝 اختبار</a>
- | 
+    | 
     <a href="list.html">📚 قاموسي</a>
+  </div>
 
-</div>
+  <div style="margin-top: 15px;">
+    <button onclick="window.location.href='study.html'" id="studyBtn" class="btn-study" style="display: none;">
+      📚 مراجعة الكلمات الصعبة (0)
+    </button>
+  </div>
 </div>
 
 <div id="logoutModal" class="quiz-overlay">
@@ -279,24 +308,25 @@
 // الدالة المسؤولة عن عرض بيانات المستخدم والستريك
 function updateUIForUser() {
   if (currentUser) {
-    // 1. إظهار شريط المستخدم
     document.getElementById('userStatus').style.display = 'flex';
-    
-    // 2. عرض الاسم الكبير
     document.getElementById('currentDisplayName').innerText = currentUser.toUpperCase();
     
-    // 3. عرض الستريك 🔥 (الجزء الجديد)
+    // 1. تحديث الستريك
     const streak = localStorage.getItem('user_streak') || 0;
     const streakEl = document.getElementById('dailyStreak');
-    if (streakEl) {
-      streakEl.innerText = `🔥 ${streak}`;
-    }
+    if (streakEl) streakEl.innerText = `🔥 ${streak}`;
     
-    // 4. عرض نقاط التلميح 💡 (اختياري لو أضفتها للـ HTML)
-    const points = localStorage.getItem('hint_points') || 0;
-    const pointsEl = document.getElementById('hintPointsDisplay');
-    if (pointsEl) {
-      pointsEl.innerText = `💡 ${points}`;
+    // 2. تحديث زر الكلمات الصعبة (Study Button)
+    const studyList = JSON.parse(localStorage.getItem('needs_study')) || [];
+    const studyBtn = document.getElementById('studyBtn');
+    
+    if (studyBtn) {
+        if (studyList.length > 0) {
+            studyBtn.style.display = 'block';
+            studyBtn.innerText = `📚 مراجعة ${studyList.length} كلمات صعبة`;
+        } else {
+            studyBtn.style.display = 'none'; // لا يظهر إذا كانت القائمة فارغة
+        }
     }
   }
 }
